@@ -2,26 +2,27 @@ import sys
 import math
 from render import animate, Spring
 
-def get_median_radius(r, n):
-    # Circle: radius r
-    # n points
-    theta = 2 * math.pi / n
-    # Alkashi
-    # c**2 = a**2 + b**2 - 2*a*b*cos(C)
-    return math.sqrt(2 * r ** 2 - 2 * r ** 2 * math.cos(theta))
+import numpy as np
+
+
+def get_desired_locations(render, n):
+    """
+    Get the List of n desired locations in the circle of radius r
+    """
+    tht = 2 * math.pi / n
+    phi = 0
+    return [phi + tht * i for i in range(n)]
 
 
 def init(render):
-    n1 = render.add_node(1)
-    n2 = render.add_node(2)
-    n3 = render.add_node(3)
-    n4 = render.add_node(4)
-    l = get_median_radius(render.l0, 3)
-    print(render.l0)
-    print(l)
-    render.add_force(n1, n2, Spring(2000, l))
-    render.add_force(n2, n3, Spring(2000, l))
-    render.add_force(n3, n4, Spring(2000, l))
+    render.set_radius(0.2)
+    bases = get_desired_locations(render, 3)
+    print(bases)
+    for i, theta in enumerate(bases):
+        static_node = render.add_node(2 * i + 1, theta=theta, static=True)
+        node = render.add_node(2 * (i + 1))
+        render.add_force(static_node, node, Spring(500, 0))
+        
     #n3 = render.add_node(3, link_to=n2)
     #render.link(n1, n3)
 

@@ -2,6 +2,7 @@
 Render
 """
 
+import sys
 import time
 
 from collections import defaultdict
@@ -16,9 +17,10 @@ from matplotlib.lines import Line2D
 DEBUG = True
 
 class Node(object):
-    def __init__(self, i, posi, static, mass):
+    def __init__(self, i, posi, static, mass, theta=None):
         self.i = i
         self.pos = posi
+        self.theta = theta
         self.v = np.zeros(2, dtype=np.float)
         self.mass = mass
         self.static = static
@@ -47,18 +49,20 @@ class Spring(Force):
         self.l0 = l0
 
     def get_force(self, node0, node1, d):
-        n = max(abs(np.linalg.norm(d)), 0.01)
-        return self.K * d / n * (n - self.l0)
+        n = np.linalg.norm(d)
+        if not self.l0:
+            return self.K * d
+        if n < 0.01:
+            return d * 0
+        return self.K * (d / n) * (n - self.l0)
 
 
 class Render(object):
-    def __init__(self, K=1e4, l0=0.2, T=0.2, f=1e4):
+    def __init__(self, T=0.2, f=1e2):
         self.nodes = {}
         self.lines = {}
         self.forces = defaultdict(list)
         # constants
-        self.l0 = l0
-        self.K = K
         self.T = T
         self.f = f
         self.m = 1e5
@@ -69,14 +73,22 @@ class Render(object):
         self.ax.set_xlim((0, 1))
         self.points = None
         self.lines2d = {}
+        # radius mode
+        self.radius = None
+        self.center = np.array((0.5, 0.5))
 
     @property
     def nodes_length(self):
         return len(self.nodes.values())
 
+    def set_radius(self, radius, center=None):
+        self.radius = radius
+        if center:
+            self.center = center
+
     def load(self, init):
-        center = (0.5, 0.5)
-        self.add_node(0, pos=np.array(center), static=True)
+        # Center point
+        self.add_node(0, pos=self.center, static=True)
         init(self)
         self.nodes_ar = np.zeros((self.nodes_length, 2))
         # Initialize first frame and plot
@@ -90,8 +102,9 @@ class Render(object):
             self.lines2d[line] = line2d
             self.ax.add_line(line2d)
         # Add extras
-        self.ax.add_artist(Circle(center, self.l0, fill=False,
-                                  linestyle="--"))
+        if self.radius:
+            self.ax.add_artist(Circle(self.center, self.radius, fill=False,
+                                      linestyle="--"))
 
     def add_force(self, node0, node1, force):
         id = self.nmlz(node0.i, node1.i)
@@ -102,21 +115,19 @@ class Render(object):
             kwargs["color"] = "green"
             self.link(node0, node1, kwargs)
 
-    def get_new_pos(self):
-        x = np.random.rand()
-        return np.array((self.l0 * np.cos(x), self.l0 * np.sin(x)))
-
-    def add_node(self, i, pos=None, link_to=None, mass=None, static=False,
-                 lcenter=True):
-        if pos is None:
-            pos = self.get_new_pos()
-        node = Node(i, pos, static, mass or self.m)
+    def add_node(self, i, pos=None, theta=None,
+                 link_to=None, mass=None, static=False, lcenter=True):
+        if pos is None and theta is None:
+            theta = np.random.rand()
+        if pos is None and theta is not None:
+            r = self.radius
+            pos = self.center + np.array((r * np.cos(theta), r * np.sin(theta)))
+        node = Node(i, pos, static, mass or self.m, theta=theta)
+        if i in self.nodes:
+            raise ValueError("Index already present")
         self.nodes[i] = node
         if link_to:
             self.link(node, link_to)
-        if lcenter:
-            # Link to center
-            self.add_force(self.nodes[0], node, Spring(self.K, self.l0))
         return node
 
     def nmlz(self, i, j):
@@ -133,11 +144,11 @@ class Render(object):
             for force in self.forces[id]:
                 d = node.pos - node0.pos
                 f = force.get_force(node, node0, d)
-                print(force.__class__.__name__ + str(f))
+                #print(force.__class__.__name__ + str(f))
                 F += f
         # Frottements
         fr = - node.v * self.f
-        print("f: %s" % fr)
+        #print("f: %s" % fr)
         F += fr
         return F
 
@@ -149,8 +160,17 @@ class Render(object):
                 continue
             # Get next position of node
             F = self.force_on(node)
-            v = node.v + F * self.T / node.mass
-            pos = node.pos + v * self.T
+            if self.radius:
+                r = self.radius
+                t = node.theta
+                F_theta = -F[0] * np.sin(t) + F[1] * np.cos(t)
+                dv = F_theta * self.T / node.mass
+                v = np.array((node.v[0], node.v[1] + dv))
+                theta = node.theta = node.theta + dv / r
+                pos = self.center + np.array((r * np.cos(theta), r * np.sin(theta)))
+            else:
+                v = node.v + F * self.T / node.mass
+                pos = node.pos + v * self.T
             new_values[i] = (pos, v)
         # Apply new positions
         for i in self.nodes:
@@ -167,7 +187,7 @@ class Render(object):
         for line, dat in self.lines.items():
             x, y, _ = dat
             self.lines2d[line].set_data(x, y)
-        print(self.nodes_ar)
+        #print(self.nodes_ar)
 
 def animate(init):
     render = Render()
