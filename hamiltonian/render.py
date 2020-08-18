@@ -3,13 +3,21 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
 """
-Rendering engine
+Rendering engine.
+
+Capabilities:
+    - display dynamic nodes
+    - display dynamic links
+    - display nodes names
 """
 
 import sys
 import time
 
 from collections import defaultdict
+from itertools import cycle
+
+from hamiltonian.movements import SincMovement
 
 import numpy as np
 import matplotlib
@@ -19,21 +27,35 @@ import matplotlib.animation as animation
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 
+colors = cycle("bgrcmyk")
+
 class Node(object):
-    def __init__(self, index, name, posi, static):
+    """
+    A Node object.
+    """
+    def __init__(self, index, name, posi, text):
         self.index = index
         self.name = name
         self.pos = posi
-        self.static = static
+        self.movement_cls = SincMovement
+        self.movement = None
+        self.text = text
+        self.c = next(colors)
 
+    def set_destination(self, pos):
+        self.movement = self.movement_cls(self.pos, pos)
+    
     def next_pos(self):
         """
         Returns the next position of the node
         """
-        if self.static:
-            return self.pos
-        # XXX TODO FIXME
-        return self.pos + np.random.rand(2) * 0.01
+        if self.movement is None:  # Static
+            pos = self.pos
+        else:
+            pos = next(self.movement)
+        self.pos = pos
+        self.text.set_position(pos)
+        return pos
 
     def __repr__(self):
         return repr(self.pos)
@@ -46,17 +68,13 @@ class Render(object):
 
     Please use animate() instead of calling it directly.
     """
-    def __init__(self, callback=None, T=0.2):
+    def __init__(self, callback=None):
         self.nodes = {}
         self.lines = {}
         self.callback = callback
-        # constants
-        self.T = T
         # create plot
         self.fig = plt.figure()
         self.ax = self.fig.add_axes([0, 0, 1, 1], frameon=False)
-        self.ax.set_ylim((0, 1))
-        self.ax.set_xlim((0, 1))
         self.points = None
         self.lines2d = {}
         # radius mode
@@ -74,17 +92,18 @@ class Render(object):
         """
         return len(self.nodes.values())
 
-    def add_node(self, name, pos, static=False, c='k'):
+    def add_node(self, name, pos):
         """
         Add a Node to the graph.
 
         :param name: the node's name
         :param pos: the initial position of the Node
-        :param static: if True, the Node won't be able to move.
+        :param movement: the movement to follow. If None, static
         :param c: the color of the Node given to matplotlib
         """
         index = self.next_index
-        node = Node(index, name, pos, static)
+        text = self.ax.annotate(name, pos)
+        node = Node(index, name, pos, text)
         if name in self.nodes:
             raise ValueError("Index name already present")
         self.nodes[index] = node
@@ -96,7 +115,7 @@ class Render(object):
         self.points.set_offsets(self.nodes_ar)
         self.points.set_facecolors(np.concatenate([
             self.points.get_facecolors(),
-            np.array(matplotlib.colors.to_rgba(c), ndmin=2)
+            np.array(matplotlib.colors.to_rgba(node.c), ndmin=2)
         ]))
         return node
 
@@ -116,7 +135,7 @@ class Render(object):
             if node.name == name:
                 return node
 
-    def add_link(self, a, b, kwargs={}):
+    def add_link(self, a, b):
         """
         Add a line (link) between two nodes.
 
@@ -125,9 +144,9 @@ class Render(object):
         :param kwargs: extra matplotlib arguments
         """
         id = self.nmlz(a.index, b.index)
-        self.lines[id] = (a.index, b.index, kwargs)
+        self.lines[id] = (a.index, b.index)
         # Append line to canvas
-        line2d = Line2D(a.pos, b.pos, **kwargs)
+        line2d = Line2D(a.pos, b.pos, c=a.c)
         self.lines2d[id] = line2d
         self.ax.add_line(line2d)
 
@@ -138,12 +157,12 @@ class Render(object):
         new_values = {}
         # Get next nodes locations
         for i, node in self.nodes.items():
-            self.nodes_ar[i,:] = self.nodes[i].pos = node.next_pos()
+            self.nodes_ar[i,:] = node.next_pos()
         # Re calculate lines
         for line in self.lines:
             x = [self.nodes_ar[line[0],0], self.nodes_ar[line[1],0]]
             y = [self.nodes_ar[line[0],1], self.nodes_ar[line[1],1]]
-            self.lines[line] = (x, y, self.lines[line][2])
+            self.lines[line] = (x, y)
     
     def draw_frame(self, t=0):
         """
@@ -154,12 +173,14 @@ class Render(object):
         self.points.set_offsets(self.nodes_ar)
         # Re-draw lines
         for line, dat in self.lines.items():
-            x, y, _ = dat
+            x, y = dat
             self.lines2d[line].set_data(x, y)
         # Callback
         if self.callback:
             self.callback(self)
-        #print(self.nodes_ar)
+        # Auto rescale
+        self.ax.relim()
+        self.ax.autoscale_view()
 
 def animate(callback):
     """

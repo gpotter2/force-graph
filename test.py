@@ -5,39 +5,47 @@
 import sys
 import math
 
+from collections import deque
+
 from hamiltonian.render import animate
+from hamiltonian.manager import HubManager
 
 import numpy as np
 
+# Test handler
 
-def get_desired_locations(render, n):
-    """
-    Get the List of n desired locations in the circle of radius r
-    """
-    tht = 2 * math.pi / n
-    phi = 0
-    return [phi + tht * i for i in range(n)]
+class TestHandler:
+    def __init__(self, actions_list):
+        self.f = 0
+        self.manager = HubManager(self.callback)
+        self.actions_list = deque(actions_list)
+        self.manager.add_hub("main", np.array((0, 0)))
+        self.manager.add_hub("main2", np.array((2, 2)))
+        self.manager.start()
 
+    def callback(self, manager):
+        self.f += 1
+        if self.f % 20 == 1 and self.actions_list:
+            action = self.actions_list.popleft()
+            manager.add_point(*action)
 
-def init(render):
-    bases = get_desired_locations(render, 3)
-    for i, theta in enumerate(bases):
-        static_node = render.add_node(2 * i + 1, theta=theta, static=True)
-        node = render.add_node(2 * (i + 1))
-        
-    #n3 = render.add_node(3, link_to=n2)
-    #render.link(n1, n3)
-
-i = 0
-
-def callback(render):
-    global i
-    pos = np.random.rand(2)
-    render.add_node("point%s" % i, pos)
-    a = render.get_node("point%s" % i)
-    b = render.get_node("point%s" % (i - 1))
-    if a and b:
-        render.add_link(a, b)
-    i += 1
-
-animate(callback)
+a = TestHandler([
+    ("node1", "main"),
+    ("node2", "main"),
+    ("node3", "main"),
+    ("node4", "main"),
+    ("node5", "main"),
+    ("node6", "main"),
+    ("node7", "main"),
+    ("node8", "main"),
+    ("node9", "node1"),
+    ("node10", "node1"),
+    ("node11", "node1"),
+    ("node12", "main2"),
+    ("node13", "main2"),
+    ("node14", "main2"),
+    ("node15", "node13"),
+    ("node16", "node13"),
+    ("node17", "node13"),
+    ("node18", "node16"),
+])
