@@ -25,6 +25,14 @@ def _get_circle_locs(r, n, phi=0):
     ]
 
 
+def _get_next_hub_pos(hubs):
+    """
+    Get the position of the center of the next hub based on existing one
+    """
+    nb = len(hubs.keys())
+    return np.array((nb % 2, nb * 2))
+
+
 class HubManager(object):
     """
     Order Nodes in hubs
@@ -62,7 +70,7 @@ class HubManager(object):
         phi = math.pi / 4 if ((1 + layer) % 2) else 0
         return rd, phi
 
-    def add_hub(self, name, pos, **kwargs):
+    def add_hub(self, name, pos=None, **kwargs):
         """
         Add a standalone hub
 
@@ -70,6 +78,8 @@ class HubManager(object):
         :param pos: the hub's position
         """
         self.objects[name] = []
+        if pos is None:
+            pos = _get_next_hub_pos(self.hubs)
         self.hubs[name] = pos
         self.new_points[name] = (None, kwargs)
         self.updated = False

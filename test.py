@@ -19,8 +19,8 @@ class TestHandler:
         self.f = 0
         self.manager = HubManager(self.callback)
         self.actions_list = deque(actions_list)
-        self.manager.add_hub("main", np.array((0, 0)))
-        self.manager.add_hub("main2", np.array((2, 2)))
+        self.manager.add_hub("main")
+        self.manager.add_hub("main2")
 
     def callback(self, manager):
         self.f += 1
