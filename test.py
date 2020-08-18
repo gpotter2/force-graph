@@ -4,7 +4,8 @@
 
 import sys
 import math
-from render import animate
+
+from hamiltonian.render import animate
 
 import numpy as np
 
