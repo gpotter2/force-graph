@@ -182,7 +182,7 @@ class Render(object):
         self.ax.relim()
         self.ax.autoscale_view()
 
-def animate(callback, output=None):
+def animate(callback, interval=1, output=None):
     """
     Start an animation
 
@@ -195,7 +195,7 @@ def animate(callback, output=None):
     ani = animation.FuncAnimation(
         render.fig,
         render.draw_frame,
-        interval=1,
+        interval=interval,
         blit=False
     )
     if output:
