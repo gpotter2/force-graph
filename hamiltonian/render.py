@@ -182,12 +182,13 @@ class Render(object):
         self.ax.relim()
         self.ax.autoscale_view()
 
-def animate(callback):
+def animate(callback, output=None):
     """
     Start an animation
 
     :param callback: a callback called on each frame with the renderer
         as argument
+    :param output: an output to write the animation instead of showing it
     """
     render = Render(callback)
     
@@ -197,4 +198,9 @@ def animate(callback):
         interval=1,
         blit=False
     )
-    plt.show()
+    if output:
+        # Save to gif file
+        ani.save(output, writer='imagemagick', fps=30)
+    else:
+        # Show
+        plt.show()

@@ -47,11 +47,11 @@ class HubManager(object):
             self.refresh_dests(render)
             self.updated = True
 
-    def start(self):
+    def start(self, **kwargs):
         """
         Start animating
         """
-        animate(self.render_callback)
+        animate(self.render_callback, **kwargs)
 
     def get_rad_and_phi(self, layer):
         """
