@@ -11,7 +11,7 @@ import numpy as np
 
 from collections import defaultdict
 
-from hamiltonian.render import animate
+from .render import animate
 
 def _get_circle_locs(r, n, phi=0):
     """

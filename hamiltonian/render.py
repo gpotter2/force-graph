@@ -17,7 +17,7 @@ import time
 from collections import defaultdict
 from itertools import cycle
 
-from hamiltonian.movements import SincMovement
+from .movements import SincMovement
 
 import numpy as np
 import matplotlib
