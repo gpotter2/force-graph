@@ -43,6 +43,7 @@ class HubManager(object):
         self.callback = callback
         self.radius = radius
         self.new_points = {}
+        self.updated = True
 
     def render_callback(self, render):
         """
