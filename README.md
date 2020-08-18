@@ -1,8 +1,8 @@
 <!-- start_ppi_description -->
 # Hamiltonian
 
-Trying to build a force graph using matplotlib.
+Small engine to animate nodes and lines with matplotlib
 
-(Note: is it even a hamiltonian path?)
-WIP
+I have (for now) no intent to release this code publicly, this will be used
+internally in some future projects.
 <!-- end_ppi_description -->
