@@ -1,6 +1,6 @@
 import sys
 import math
-from render import animate, Spring
+from render import animate
 
 import numpy as np
 
@@ -15,15 +15,24 @@ def get_desired_locations(render, n):
 
 
 def init(render):
-    render.set_radius(0.2)
     bases = get_desired_locations(render, 3)
-    print(bases)
     for i, theta in enumerate(bases):
         static_node = render.add_node(2 * i + 1, theta=theta, static=True)
         node = render.add_node(2 * (i + 1))
-        render.add_force(static_node, node, Spring(500, 0))
         
     #n3 = render.add_node(3, link_to=n2)
     #render.link(n1, n3)
 
-animate(init)
+i = 0
+
+def callback(render):
+    global i
+    pos = np.random.rand(2)
+    render.add_node("point%s" % i, pos)
+    a = render.get_node("point%s" % i)
+    b = render.get_node("point%s" % (i - 1))
+    if a and b:
+        render.add_link(a, b)
+    i += 1
+
+animate(callback)
