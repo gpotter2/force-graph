@@ -1,5 +1,9 @@
+# Copyright (c) 2020 Gabriel Potter
+# This work is licensed under the terms of the MIT license.
+# For a copy, see <https://opensource.org/licenses/MIT>.
+
 """
-Render
+Rendering engine
 """
 
 import sys
@@ -23,6 +27,9 @@ class Node(object):
         self.static = static
 
     def next_pos(self):
+        """
+        Returns the next position of the node
+        """
         if self.static:
             return self.pos
         # XXX TODO FIXME
@@ -34,6 +41,11 @@ class Node(object):
 
 
 class Render(object):
+    """
+    Rendering engine.
+
+    Please use animate() instead of calling it directly.
+    """
     def __init__(self, callback=None, T=0.2):
         self.nodes = {}
         self.lines = {}
@@ -57,9 +69,20 @@ class Render(object):
 
     @property
     def next_index(self):
+        """
+        Internal property that gives the next node ID
+        """
         return len(self.nodes.values())
 
     def add_node(self, name, pos, static=False, c='k'):
+        """
+        Add a Node to the graph.
+
+        :param name: the node's name
+        :param pos: the initial position of the Node
+        :param static: if True, the Node won't be able to move.
+        :param c: the color of the Node given to matplotlib
+        """
         index = self.next_index
         node = Node(index, name, pos, static)
         if name in self.nodes:
@@ -78,14 +101,29 @@ class Render(object):
         return node
 
     def nmlz(self, i, j):
+        """
+        Internal function used to normalize the ID of a link
+        """
         return tuple(sorted([i, j]))
 
     def get_node(self, name):
+        """
+        Get a Node object based on its name.
+
+        :param name: the Node name
+        """
         for node in self.nodes.values():
             if node.name == name:
                 return node
 
     def add_link(self, a, b, kwargs={}):
+        """
+        Add a line (link) between two nodes.
+
+        :param a:
+        :param b: a Node object (acquired using .get_node())
+        :param kwargs: extra matplotlib arguments
+        """
         id = self.nmlz(a.index, b.index)
         self.lines[id] = (a.index, b.index, kwargs)
         # Append line to canvas
@@ -94,6 +132,9 @@ class Render(object):
         self.ax.add_line(line2d)
 
     def next_frame(self):
+        """
+        Internal function used to calculate the next frame.
+        """
         new_values = {}
         # Get next nodes locations
         for i, node in self.nodes.items():
@@ -105,6 +146,9 @@ class Render(object):
             self.lines[line] = (x, y, self.lines[line][2])
     
     def draw_frame(self, t=0):
+        """
+        Internal function used to draw a frame.
+        """
         self.next_frame()
         # Re-draw points
         self.points.set_offsets(self.nodes_ar)
@@ -118,6 +162,12 @@ class Render(object):
         #print(self.nodes_ar)
 
 def animate(callback):
+    """
+    Start an animation
+
+    :param callback: a callback called on each frame with the renderer
+        as argument
+    """
     render = Render(callback)
     
     ani = animation.FuncAnimation(
