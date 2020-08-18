@@ -21,7 +21,6 @@ class TestHandler:
         self.actions_list = deque(actions_list)
         self.manager.add_hub("main", np.array((0, 0)))
         self.manager.add_hub("main2", np.array((2, 2)))
-        self.manager.start()
 
     def callback(self, manager):
         self.f += 1
@@ -29,23 +28,28 @@ class TestHandler:
             action = self.actions_list.popleft()
             manager.add_point(*action)
 
-a = TestHandler([
-    ("node1", "main"),
-    ("node2", "main"),
-    ("node3", "main"),
-    ("node4", "main"),
-    ("node5", "main"),
-    ("node6", "main"),
-    ("node7", "main"),
-    ("node8", "main"),
-    ("node9", "node1"),
-    ("node10", "node1"),
-    ("node11", "node1"),
-    ("node12", "main2"),
-    ("node13", "main2"),
-    ("node14", "main2"),
-    ("node15", "node13"),
-    ("node16", "node13"),
-    ("node17", "node13"),
-    ("node18", "node16"),
-])
+def test():
+    h = TestHandler([
+        ("node1", "main"),
+        ("node2", "main"),
+        ("node3", "main"),
+        ("node4", "main"),
+        ("node5", "main"),
+        ("node6", "main"),
+        ("node7", "main"),
+        ("node8", "main"),
+        ("node9", "node1"),
+        ("node10", "node1"),
+        ("node11", "node1"),
+        ("node12", "main2"),
+        ("node13", "main2"),
+        ("node14", "main2"),
+        ("node15", "node13"),
+        ("node16", "node13"),
+        ("node17", "node13"),
+        ("node18", "node16"),
+    ])
+    # Start thread
+    h.manager.start()
+
+test()
