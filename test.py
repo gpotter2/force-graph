@@ -1,55 +1,48 @@
-# Copyright (c) 2020 Gabriel Potter
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
-
-import sys
-import math
+"""
+Test & demo file
+"""
 
 from collections import deque
-
-from hamiltonian.render import animate
-from hamiltonian.manager import HubManager
+from enum import Enum
 
 import numpy as np
+from hamiltonian.manager import Manager
 
-# Test handler
+class TestManager(Manager):
+    """
+    A hectic test to show that the point generation,
+    line generation, point deletion, line deletion,
+    point movements work.
 
-class TestHandler:
-    def __init__(self, actions_list):
-        self.f = 0
-        self.manager = HubManager(self.callback)
-        self.actions_list = deque(actions_list)
-        self.manager.add_hub("main")
-        self.manager.add_hub("main2")
+    :param per: frames between two cycles of actions
+    """
+    def __init__(self, per):
+        super(TestManager, self).__init__(
+            callback=lambda x: x.refresh()
+        )
+        self.ind = 0
+        self.per = per
+        self.prevs = []
 
-    def callback(self, manager):
-        self.f += 1
-        if self.f % 20 == 1 and self.actions_list:
-            action = self.actions_list.popleft()
-            manager.add_point(*action)
+    def update(self, render):
+        self.ind += 1
+        cyl = self.ind // self.per
+        action = self.ind % self.per
+        if action == 0:
+            node = render.add_node(
+                "node%i" % cyl,
+                np.random.rand(2)
+            )
+            self.prevs.append(node)
+        elif action == 1 and cyl > 1:
+            a, b = self.prevs[-1], self.prevs[-2]
+            render.add_link(a, b)
+        elif action == 2 and cyl > 1:
+            self.prevs[-1].set_destination(
+                np.random.rand(2)
+            )
+        elif action == 3 and cyl > 5:
+            render.remove_node(self.prevs[0].name)
+            del self.prevs[0]
 
-def test():
-    h = TestHandler([
-        ("node1", "main"),
-        ("node2", "main"),
-        ("node3", "main"),
-        ("node4", "main"),
-        ("node5", "main"),
-        ("node6", "main"),
-        ("node7", "main"),
-        ("node8", "main"),
-        ("node9", "node1"),
-        ("node10", "node1"),
-        ("node11", "node1"),
-        ("node12", "main2"),
-        ("node13", "main2"),
-        ("node14", "main2"),
-        ("node15", "node13"),
-        ("node16", "node13"),
-        ("node17", "node13"),
-        ("node18", "node16"),
-    ])
-    # Start thread
-    h.manager.start()
-
-test()
+TestManager(20).start()

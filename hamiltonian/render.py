@@ -15,7 +15,7 @@ import sys
 import time
 
 from collections import defaultdict
-from itertools import cycle
+from itertools import cycle, count
 
 from .movements import SincMovement
 
@@ -33,8 +33,8 @@ class Node(object):
     """
     A Node object.
     """
-    def __init__(self, index, name, posi, text):
-        self.index = index
+    def __init__(self, uuid, name, posi, text):
+        self.uuid = uuid
         self.name = name
         self.pos = posi
         self.movement_cls = SincMovement
@@ -43,8 +43,12 @@ class Node(object):
         self.c = next(colors)
 
     def set_destination(self, pos):
+        """
+        Change the destination of the node.
+        This also resets the current movement.
+        """
         self.movement = self.movement_cls(self.pos, pos)
-    
+
     def next_pos(self):
         """
         Returns the next position of the node
@@ -69,9 +73,13 @@ class Render(object):
     Please use animate() instead of calling it directly.
     """
     def __init__(self, callback=None):
-        self.nodes = {}
+        # Used to store the objects
+        self.nodes = {}  # Dict[int, Node]
+        # Used to store the objects index
+        self.nodes_index_map = []  # List[int]
         self.lines = {}
         self.callback = callback
+        self._counter = count()
         # create plot
         self.fig = plt.figure()
         self.ax = self.fig.add_axes([0, 0, 1, 1], frameon=False)
@@ -86,11 +94,11 @@ class Render(object):
                                       s=50)
 
     @property
-    def next_index(self):
+    def next_uuid(self):
         """
         Internal property that gives the next node ID
         """
-        return len(self.nodes.values())
+        return next(self._counter)
 
     def add_node(self, name, pos):
         """
@@ -98,15 +106,17 @@ class Render(object):
 
         :param name: the node's name
         :param pos: the initial position of the Node
-        :param movement: the movement to follow. If None, static
-        :param c: the color of the Node given to matplotlib
         """
-        index = self.next_index
+        uuid = self.next_uuid
+        # Annotate point
         text = self.ax.annotate(name, pos)
-        node = Node(index, name, pos, text)
+        # Create Node object
+        node = Node(uuid, name, pos, text)
         if name in self.nodes:
             raise ValueError("Index name already present")
-        self.nodes[index] = node
+        # Save node
+        self.nodes[uuid] = node
+        self.nodes_index_map.append(uuid)
         # Append point to scatter
         self.nodes_ar = np.concatenate([
             self.nodes_ar,
@@ -118,6 +128,39 @@ class Render(object):
             np.array(matplotlib.colors.to_rgba(node.c), ndmin=2)
         ]))
         return node
+
+    def remove_node(self, name):
+        """
+        Remove a node, and all the links its in.
+
+        :param name: the node's name
+        """
+        node = self.get_node(name)
+        if node is None:
+            raise ValueError("Unknown node !")
+        # We get the index to remove the matching data
+        index = self.nodes_index_map.index(node.uuid)
+        del self.nodes_index_map[index]
+        # Unregister the node from graphical data
+        self.nodes_ar = np.delete(
+            self.nodes_ar,
+            index,
+            axis=0
+        )
+        self.points.set_offsets(self.nodes_ar)
+        self.points.set_facecolors(np.delete(
+            self.points.get_facecolors(),
+            index,
+            axis=0
+        ))
+        self.ax.texts.remove(node.text)
+        self.ax.stale = True
+        # Remove all lines the node is in
+        for line in self.lines.copy():
+            if node.uuid in line:
+                self.remove_link(line)
+        # Remove node
+        del self.nodes[node.uuid]
 
     def nmlz(self, i, j):
         """
@@ -141,27 +184,47 @@ class Render(object):
 
         :param a:
         :param b: a Node object (acquired using .get_node())
-        :param kwargs: extra matplotlib arguments
         """
-        id = self.nmlz(a.index, b.index)
-        self.lines[id] = (a.index, b.index)
+        id = self.nmlz(a.uuid, b.uuid)
+        self.lines[id] = id
         # Append line to canvas
         line2d = Line2D(a.pos, b.pos, c=a.c)
         self.lines2d[id] = line2d
         self.ax.add_line(line2d)
+
+    def remove_link(self, tup):
+        """
+        Remove a line (link) between two nodes.
+        
+        :param tup: a tuple of nodes or of their UUIDs
+        """
+        if all(isinstance(x, Node) for x in tup):
+            a, b = tup
+            id = self.nmlz(a.uuid, b.uuid)
+        else:
+            id = self.nmlz(*tup)
+        del self.lines[id]
+        line2d = self.lines2d[id]
+        del self.lines2d[id]
+        self.ax.lines.remove(line2d)
+        self.ax.stale = True
 
     def next_frame(self):
         """
         Internal function used to calculate the next frame.
         """
         new_values = {}
+        uuids_index = {}
         # Get next nodes locations
-        for i, node in self.nodes.items():
+        for i, uuid in enumerate(self.nodes_index_map):
+            node = self.nodes[uuid]
+            uuids_index[uuid] = i
             self.nodes_ar[i,:] = node.next_pos()
         # Re calculate lines
         for line in self.lines:
-            x = [self.nodes_ar[line[0],0], self.nodes_ar[line[1],0]]
-            y = [self.nodes_ar[line[0],1], self.nodes_ar[line[1],1]]
+            i0, i1 = uuids_index[line[0]], uuids_index[line[1]]
+            x = [self.nodes_ar[i0,0], self.nodes_ar[i1,0]]
+            y = [self.nodes_ar[i0,1], self.nodes_ar[i1,1]]
             self.lines[line] = (x, y)
     
     def draw_frame(self, t=0):
